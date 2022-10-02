@@ -574,6 +574,7 @@ typedef struct SDL_QuitEvent
 {
     Uint32 type;        /**< ::SDL_QUIT */
     Uint32 timestamp;   /**< In milliseconds, populated using SDL_GetTicks() */
+    Uint32 quitType;
 } SDL_QuitEvent;
 
 /**

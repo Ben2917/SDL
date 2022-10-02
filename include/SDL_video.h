@@ -179,6 +179,13 @@ typedef enum
     SDL_WINDOWEVENT_DISPLAY_CHANGED /**< Window has been moved to display data1. */
 } SDL_WindowEventID;
 
+typedef enum
+{
+    SDL_WINDOWCLOSEEVENT_CROSS, /**< Window has been closed with the cross button */
+    SDL_WINDOWCLOSEEVENT_KEYBOARD_SHORTCUT /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
+
+} SDL_WindowCloseEventID;
+
 /**
  *  \brief Event subtype for display events
  */
