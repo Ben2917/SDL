@@ -181,9 +181,9 @@ typedef enum
 
 typedef enum
 {
-    SDL_WINDOWCLOSEEVENT_CROSS, /**< Window has been closed with the cross button */
-    SDL_WINDOWCLOSEEVENT_KEYBOARD_SHORTCUT /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
-
+    SDL_WINDOWCLOSEEVENT_CROSS,             /**< Window has been closed with the cross button */
+    SDL_WINDOWCLOSEEVENT_KEYBOARD_SHORTCUT, /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
+    SDL_WINDOWCLOSEEVENT_SIGNAL             /**< Window has been closed by a signal event */
 } SDL_WindowCloseEventID;
 
 /**

@@ -176,7 +176,7 @@ SDL_SendPendingSignalEvents(void)
 {
 #ifdef HAVE_SIGNAL_SUPPORT
     if (send_quit_pending) {
-        SDL_SendQuit();
+        SDL_SendQuit(SDL_WINDOWCLOSEEVENT_SIGNAL);
         SDL_assert(!send_quit_pending);
     }
 
@@ -200,10 +200,10 @@ SDL_SendPendingSignalEvents(void)
 int
 SDL_SendQuit(int quitType)
 {
+    int posted;
 #ifdef HAVE_SIGNAL_SUPPORT
     send_quit_pending = SDL_FALSE;
 #endif
-    int posted;
 
     posted = 0;
     if (SDL_GetEventState(SDL_QUIT) == SDL_ENABLE) {
