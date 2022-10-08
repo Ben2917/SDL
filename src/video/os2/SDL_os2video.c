@@ -312,7 +312,7 @@ static VOID _wmChar(WINDATA *pWinData, MPARAM mp1, MPARAM mp2)
 
     if (((ulFlags & (KC_VIRTUALKEY | KC_KEYUP | KC_ALT)) == (KC_VIRTUALKEY | KC_ALT)) &&
         (ulVirtualKey == VK_F4)) {
-        SDL_SendWindowEvent(pWinData->window, SDL_WINDOWEVENT_CLOSE, SDL_WINDOWCLOSETRIGGER_ALT_F4, 0);
+        SDL_SendWindowEvent(pWinData->window, SDL_WINDOWEVENT_CLOSE, SDL_WINDOWCLOSETRIGGER_KEYBOARD_SHORTCUT, 0);
     }
 
     if ((ulFlags & KC_SCANCODE) != 0) {
