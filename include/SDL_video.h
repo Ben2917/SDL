@@ -149,6 +149,16 @@ typedef enum
             (((X)&0xFFFF0000) == SDL_WINDOWPOS_CENTERED_MASK)
 
 /**
+*  \brief Enumerates the possible triggers for the window close event
+*/
+typedef enum
+{
+    SDL_WINDOWCLOSETRIGGER_CROSS,             /**< Window has been closed with the cross button */
+    SDL_WINDOWCLOSETRIGGER_KEYBOARD_SHORTCUT, /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
+    SDL_WINDOWCLOSETRIGGER_SIGNAL             /**< Window has been closed by a signal event */
+} SDL_WindowCloseTrigger;
+
+/**
  *  \brief Event subtype for window events
  */
 typedef enum
@@ -179,12 +189,6 @@ typedef enum
     SDL_WINDOWEVENT_DISPLAY_CHANGED /**< Window has been moved to display data1. */
 } SDL_WindowEventID;
 
-typedef enum
-{
-    SDL_WINDOWCLOSEEVENT_CROSS,             /**< Window has been closed with the cross button */
-    SDL_WINDOWCLOSEEVENT_KEYBOARD_SHORTCUT, /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
-    SDL_WINDOWCLOSEEVENT_SIGNAL             /**< Window has been closed by a signal event */
-} SDL_WindowCloseEventID;
 
 /**
  *  \brief Event subtype for display events
