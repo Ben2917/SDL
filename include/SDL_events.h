@@ -574,7 +574,7 @@ typedef struct SDL_QuitEvent
 {
     Uint32 type;        /**< ::SDL_QUIT */
     Uint32 timestamp;   /**< In milliseconds, populated using SDL_GetTicks() */
-    Uint32 quitTrigger; /**< Trigger for the quit event */ // TODO: Change to "closeTrigger" to match enum
+    Uint32 quitTrigger; /**< Trigger for the quit event */
 } SDL_QuitEvent;
 
 /**
