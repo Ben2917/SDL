@@ -409,7 +409,7 @@ Wayland_PumpEvents(_THIS)
         d->display_disconnected = 1;
         /* Only send a single quit message, as application shutdown might call
          * SDL_PumpEvents */
-        SDL_SendQuit();
+        SDL_SendQuit(SDL_WINDOWCLOSETRIGGER_ERROR_STATE);
     }
 }
 
