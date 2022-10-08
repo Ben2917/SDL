@@ -155,7 +155,8 @@ typedef enum
 {
     SDL_WINDOWCLOSETRIGGER_CROSS,             /**< Window has been closed with the cross button */
     SDL_WINDOWCLOSETRIGGER_KEYBOARD_SHORTCUT, /**< Window has been closed with a keyboard shortcut (Alt + F4, Command + Q) */
-    SDL_WINDOWCLOSETRIGGER_SIGNAL             /**< Window has been closed by a signal event */
+    SDL_WINDOWCLOSETRIGGER_SIGNAL,            /**< Window has been closed by a signal event */
+    SDL_WINDOWCLOSETRIGGER_ERROR_STATE        /**< An error state has necessitated a window close */
 } SDL_WindowCloseTrigger;
 
 /**
