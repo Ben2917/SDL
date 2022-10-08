@@ -707,6 +707,8 @@ DECOR_LIBS
 DECOR_CFLAGS
 FUSIONSOUND_LIBS
 FUSIONSOUND_CFLAGS
+SNDIO_LIBS
+SNDIO_CFLAGS
 ARTSCONFIG
 PULSEAUDIO_LIBS
 PULSEAUDIO_CFLAGS
@@ -840,6 +842,7 @@ enable_largefile
 enable_assertions
 enable_dependency_tracking
 enable_libc
+enable_system_iconv
 enable_gcc_atomics
 enable_atomic
 enable_audio
@@ -976,6 +979,8 @@ PIPEWIRE_CFLAGS
 PIPEWIRE_LIBS
 PULSEAUDIO_CFLAGS
 PULSEAUDIO_LIBS
+SNDIO_CFLAGS
+SNDIO_LIBS
 FUSIONSOUND_CFLAGS
 FUSIONSOUND_LIBS
 DECOR_CFLAGS
@@ -1631,6 +1636,8 @@ Optional Features:
   --enable-dependency-tracking
                           Use gcc -MMD -MT dependency tracking [default=yes]
   --enable-libc           Use the system C library [default=yes]
+  --enable-system-iconv   Use iconv() from system-installed libraries
+                          [default=yes]
   --enable-gcc-atomics    Use gcc builtin atomics [default=yes]
   --enable-atomic         Enable the atomic operations subsystem [default=yes]
   --enable-audio          Enable the audio subsystem [default=yes]
@@ -1821,6 +1828,9 @@ Some influential environment variables:
               C compiler flags for PULSEAUDIO, overriding pkg-config
   PULSEAUDIO_LIBS
               linker flags for PULSEAUDIO, overriding pkg-config
+  SNDIO_CFLAGS
+              C compiler flags for SNDIO, overriding pkg-config
+  SNDIO_LIBS  linker flags for SNDIO, overriding pkg-config
   FUSIONSOUND_CFLAGS
               C compiler flags for FUSIONSOUND, overriding pkg-config
   FUSIONSOUND_LIBS
@@ -17952,7 +17962,8 @@ test -n "$SORT" || SORT="false"
 
 if ! "$SORT" -V </dev/null >/dev/null
 then :
-  as_fn_error $? "GNU sort(1) is required" "$LINENO" 5
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: sort(1) that supports the -V option is required to find dynamic libraries" >&5
+printf "%s\n" "$as_me: WARNING: sort(1) that supports the -V option is required to find dynamic libraries" >&2;}
 fi
 
 # Check whether --enable-largefile was given.
@@ -18675,6 +18686,16 @@ then :
 else $as_nop
   enable_libc=yes
 fi
+
+
+# Check whether --enable-system-iconv was given.
+if test ${enable_system_iconv+y}
+then :
+  enableval=$enable_system_iconv;
+else $as_nop
+  enable_system_iconv=yes
+fi
+
 
 if test x$enable_libc = xyes; then
 
@@ -19883,7 +19904,8 @@ then :
 fi
 
 
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for iconv_open in -liconv" >&5
+    if test x$enable_system_iconv = xyes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for iconv_open in -liconv" >&5
 printf %s "checking for iconv_open in -liconv... " >&6; }
 if test ${ac_cv_lib_iconv_iconv_open+y}
 then :
@@ -19923,13 +19945,14 @@ then :
   LIBS="$LIBS -liconv"; EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"
 fi
 
-    ac_fn_c_check_func "$LINENO" "iconv" "ac_cv_func_iconv"
+        ac_fn_c_check_func "$LINENO" "iconv" "ac_cv_func_iconv"
 if test "x$ac_cv_func_iconv" = xyes
 then :
   printf "%s\n" "#define HAVE_ICONV 1" >>confdefs.h
 
 fi
 
+    fi
 
     ac_fn_c_check_member "$LINENO" "struct sigaction" "sa_sigaction" "ac_cv_member_struct_sigaction_sa_sigaction" "#include <signal.h>
 "
@@ -22318,66 +22341,79 @@ else $as_nop
 fi
 
     if test x$enable_audio = xyes -a x$enable_sndio = xyes; then
-        ac_fn_c_check_header_compile "$LINENO" "sndio.h" "ac_cv_header_sndio_h" "$ac_includes_default"
-if test "x$ac_cv_header_sndio_h" = xyes
-then :
-  have_sndio_hdr=yes
-fi
 
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for sio_open in -lsndio" >&5
-printf %s "checking for sio_open in -lsndio... " >&6; }
-if test ${ac_cv_lib_sndio_sio_open+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lsndio  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
+pkg_failed=no
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for sndio" >&5
+printf %s "checking for sndio... " >&6; }
 
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-char sio_open ();
-int
-main (void)
-{
-return sio_open ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"
-then :
-  ac_cv_lib_sndio_sio_open=yes
-else $as_nop
-  ac_cv_lib_sndio_sio_open=no
+if test -n "$SNDIO_CFLAGS"; then
+    pkg_cv_SNDIO_CFLAGS="$SNDIO_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"sndio\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "sndio") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_SNDIO_CFLAGS=`$PKG_CONFIG --cflags "sndio" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
 fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
+ else
+    pkg_failed=untried
 fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sndio_sio_open" >&5
-printf "%s\n" "$ac_cv_lib_sndio_sio_open" >&6; }
-if test "x$ac_cv_lib_sndio_sio_open" = xyes
-then :
-  have_sndio_lib=yes
+if test -n "$SNDIO_LIBS"; then
+    pkg_cv_SNDIO_LIBS="$SNDIO_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"sndio\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "sndio") 2>&5
+  ac_status=$?
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_SNDIO_LIBS=`$PKG_CONFIG --libs "sndio" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
 fi
 
 
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for sndio audio support" >&5
-printf %s "checking for sndio audio support... " >&6; }
-        have_sndio=no
 
-        if test x$have_sndio_hdr = xyes -a x$have_sndio_lib = xyes; then
-            have_sndio=yes
-            SNDIO_LIBS="-lsndio"
+if test $pkg_failed = yes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        SNDIO_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "sndio" 2>&1`
+        else
+	        SNDIO_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "sndio" 2>&1`
         fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$SNDIO_PKG_ERRORS" >&5
 
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_sndio" >&5
-printf "%s\n" "$have_sndio" >&6; }
+	audio_sndio=no
+elif test $pkg_failed = untried; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	audio_sndio=no
+else
+	SNDIO_CFLAGS=$pkg_cv_SNDIO_CFLAGS
+	SNDIO_LIBS=$pkg_cv_SNDIO_LIBS
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	audio_sndio=yes
+fi
 
-        if test x$have_sndio = xyes; then
+        if test x$audio_sndio = xyes; then
             # Check whether --enable-sndio-shared was given.
 if test ${enable_sndio_shared+y}
 then :
@@ -22770,6 +22806,41 @@ printf "%s\n" "$have_clang_objc_arc" >&6; }
 
     if test x$have_clang_objc_arc = xyes; then
         EXTRA_CFLAGS="$EXTRA_CFLAGS -fobjc-arc"
+    fi
+}
+
+CheckGDwarf4()
+{
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GCC -gdwarf-4 option" >&5
+printf %s "checking for GCC -gdwarf-4 option... " >&6; }
+    have_gcc_gdwarf4=no
+
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$save_CFLAGS -gdwarf-4"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    int x = 0;
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  have_gcc_gdwarf4=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_gcc_gdwarf4" >&5
+printf "%s\n" "$have_gcc_gdwarf4" >&6; }
+    CFLAGS="$save_CFLAGS"
+
+    if test x$have_gcc_gdwarf4 = xyes; then
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -gdwarf-4"
     fi
 }
 
@@ -28503,6 +28574,7 @@ printf "%s\n" "#define SDL_TIMER_UNIX 1" >>confdefs.h
         if test x$enable_loadso = xyes; then
             have_loadso=yes
         fi
+        CheckGDwarf4
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -28931,7 +29003,11 @@ printf "%s\n" "#define SDL_VIDEO_RENDER_OGL_ES2 1" >>confdefs.h
         SOURCES="$SOURCES $srcdir/src/video/uikit/*.m"
         SUMMARY_video="${SUMMARY_video} uikit"
         have_video=yes
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lm -liconv -lobjc"
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lm"
+        if test x$enable_system_iconv = xyes; then
+            EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"
+        fi
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lobjc"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,AVFoundation"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,AudioToolbox"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,CoreAudio"
@@ -29227,8 +29303,10 @@ printf "%s\n" "#define SDL_TIMER_UNIX 1" >>confdefs.h
 
         # Set up the core platform files
         SOURCES="$SOURCES $srcdir/src/core/os2/*.c"
-        if test x$ac_cv_func_iconv != xyes -o x$ac_cv_header_iconv_h != xyes; then
-            SOURCES="$SOURCES $srcdir/src/core/os2/geniconv/*.c"
+        if test x$enable_system_iconv = xyes; then
+            if test x$ac_cv_func_iconv != xyes -o x$ac_cv_header_iconv_h != xyes; then
+                SOURCES="$SOURCES $srcdir/src/core/os2/geniconv/*.c"
+            fi
         fi
         # Use the Unix locale APIs.
         if test x$enable_locale = xyes; then
