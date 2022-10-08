@@ -71,7 +71,7 @@ if [ test -z "$AWK" ]; then
 fi
 
 AC_CHECK_PROGS([SORT], [gsort sort], [false])
-AS_IF([! "$SORT" -V </dev/null >/dev/null], [AC_MSG_ERROR([GNU sort(1) is required])])
+AS_IF([! "$SORT" -V </dev/null >/dev/null], [AC_MSG_WARN([sort(1) that supports the -V option is required to find dynamic libraries])])
 
 dnl 64-bit file offsets if possible unless --disable-largefile is specified
 AC_SYS_LARGEFILE
@@ -317,6 +317,12 @@ dnl See whether we are allowed to use the system C library
 AC_ARG_ENABLE(libc,
 [AS_HELP_STRING([--enable-libc], [Use the system C library [default=yes]])],
               , enable_libc=yes)
+
+dnl See whether we are allowed to use libiconv
+AC_ARG_ENABLE(system-iconv,
+[AS_HELP_STRING([--enable-system-iconv], [Use iconv() from system-installed libraries [default=yes]])],
+              , enable_system_iconv=yes)
+
 if test x$enable_libc = xyes; then
     AC_DEFINE(HAVE_LIBC, 1, [ ])
 
@@ -347,8 +353,10 @@ dnl Checks for library functions.
     AC_CHECK_LIB(m, pow, [LIBS="$LIBS -lm"; EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lm"])
     AC_CHECK_FUNCS(acos acosf asin asinf atan atanf atan2 atan2f ceil ceilf copysign copysignf cos cosf exp expf fabs fabsf floor floorf trunc truncf fmod fmodf log logf log10 log10f lround lroundf pow powf round roundf scalbn scalbnf sin sinf sqrt sqrtf tan tanf)
 
-    AC_CHECK_LIB(iconv, iconv_open, [LIBS="$LIBS -liconv"; EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"])
-    AC_CHECK_FUNCS(iconv)
+    if test x$enable_system_iconv = xyes; then
+        AC_CHECK_LIB(iconv, iconv_open, [LIBS="$LIBS -liconv"; EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"])
+        AC_CHECK_FUNCS(iconv)
+    fi
 
     AC_CHECK_MEMBER(struct sigaction.sa_sigaction,[AC_DEFINE([HAVE_SA_SIGACTION], 1, [ ])], ,[#include <signal.h>])
 
@@ -1280,20 +1288,9 @@ CheckSNDIO()
 [AS_HELP_STRING([--enable-sndio], [support the sndio audio API [default=yes]])],
                   , enable_sndio=yes)
     if test x$enable_audio = xyes -a x$enable_sndio = xyes; then
-        AC_CHECK_HEADER(sndio.h, have_sndio_hdr=yes)
-        AC_CHECK_LIB(sndio, sio_open, have_sndio_lib=yes)
+        PKG_CHECK_MODULES([SNDIO], [sndio], audio_sndio=yes, audio_sndio=no)
 
-        AC_MSG_CHECKING(for sndio audio support)
-        have_sndio=no
-
-        if test x$have_sndio_hdr = xyes -a x$have_sndio_lib = xyes; then
-            have_sndio=yes
-            SNDIO_LIBS="-lsndio"
-        fi
-
-        AC_MSG_RESULT($have_sndio)
-
-        if test x$have_sndio = xyes; then
+        if test x$audio_sndio = xyes; then
             AC_ARG_ENABLE(sndio-shared,
 [AS_HELP_STRING([--enable-sndio-shared], [dynamically load sndio audio support [default=yes]])],
                           , enable_sndio_shared=yes)
@@ -1512,6 +1509,26 @@ CheckObjectiveCARC()
 
     if test x$have_clang_objc_arc = xyes; then
         EXTRA_CFLAGS="$EXTRA_CFLAGS -fobjc-arc"
+    fi
+}
+
+dnl See if GCC's -gdwarf-4 is supported
+dnl See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=101377 for why this is needed on Windows
+CheckGDwarf4()
+{
+    AC_MSG_CHECKING(for GCC -gdwarf-4 option)
+    have_gcc_gdwarf4=no
+
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$save_CFLAGS -gdwarf-4"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+    int x = 0;
+    ]],[])], [have_gcc_gdwarf4=yes],[])
+    AC_MSG_RESULT($have_gcc_gdwarf4)
+    CFLAGS="$save_CFLAGS"
+
+    if test x$have_gcc_gdwarf4 = xyes; then
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -gdwarf-4"
     fi
 }
 
@@ -3969,6 +3986,7 @@ case "$host" in
         if test x$enable_loadso = xyes; then
             have_loadso=yes
         fi
+        CheckGDwarf4
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4276,7 +4294,11 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
         SOURCES="$SOURCES $srcdir/src/video/uikit/*.m"
         SUMMARY_video="${SUMMARY_video} uikit"
         have_video=yes
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lm -liconv -lobjc"
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lm"
+        if test x$enable_system_iconv = xyes; then
+            EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"
+        fi
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lobjc"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,AVFoundation"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,AudioToolbox"
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-framework,CoreAudio"
@@ -4538,8 +4560,10 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
 
         # Set up the core platform files
         SOURCES="$SOURCES $srcdir/src/core/os2/*.c"
-        if test x$ac_cv_func_iconv != xyes -o x$ac_cv_header_iconv_h != xyes; then
-            SOURCES="$SOURCES $srcdir/src/core/os2/geniconv/*.c"
+        if test x$enable_system_iconv = xyes; then
+            if test x$ac_cv_func_iconv != xyes -o x$ac_cv_header_iconv_h != xyes; then
+                SOURCES="$SOURCES $srcdir/src/core/os2/geniconv/*.c"
+            fi
         fi
         # Use the Unix locale APIs.
         if test x$enable_locale = xyes; then
