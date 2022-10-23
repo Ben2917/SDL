@@ -80,9 +80,9 @@
 # include <ctype.h>
 #endif
 #ifdef HAVE_MATH_H
-# if defined(__WINRT__)
+# if defined(_MSC_VER)
 /* Defining _USE_MATH_DEFINES is required to get M_PI to be defined on
-   WinRT.  See http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx
+   Visual Studio.  See http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx
    for more information.
 */
 #  define _USE_MATH_DEFINES
@@ -410,7 +410,7 @@ SDL_COMPILE_TIME_ASSERT(sint64, sizeof(Sint64) == 8);
 
 /** \cond */
 #ifndef DOXYGEN_SHOULD_IGNORE_THIS
-#if !defined(__ANDROID__) && !defined(__VITA__)
+#if !defined(__ANDROID__) && !defined(__VITA__) && !defined(__3DS__)
    /* TODO: include/SDL_stdinc.h:174: error: size of array 'SDL_dummy_enum' is negative */
 typedef enum
 {

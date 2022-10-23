@@ -927,16 +927,8 @@ CheckOSS()
     AC_ARG_ENABLE(oss,
 [AS_HELP_STRING([--enable-oss], [support the OSS audio API [default=maybe]])],
                   , enable_oss=maybe)
-
-    # OpenBSD "has" OSS, but it's not really for app use. They want you to
-    #  use sndio instead. So on there, we default to disabled. You can force
-    #  it on if you really want, though.
     if test x$enable_oss = xmaybe; then
         enable_oss=yes
-        case "$host" in
-            *-*-openbsd*)
-                enable_oss=no;;
-        esac
     fi
 
     if test x$enable_audio = xyes -a x$enable_oss = xyes; then
@@ -949,16 +941,6 @@ CheckOSS()
               int arg = SNDCTL_DSP_SETFRAGMENT;
             ]])], [have_oss=yes],[])
         fi
-        if test x$have_oss != xyes; then
-            AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-              #include <soundcard.h>
-            ]], [[
-              int arg = SNDCTL_DSP_SETFRAGMENT;
-            ]])], [
-            have_oss=yes
-            AC_DEFINE(SDL_AUDIO_DRIVER_OSS_SOUNDCARD_H, 1, [ ])
-            ],[])
-        fi
         AC_MSG_RESULT($have_oss)
         if test x$have_oss = xyes; then
             SUMMARY_audio="${SUMMARY_audio} oss"
@@ -968,7 +950,7 @@ CheckOSS()
 
             # We may need to link with ossaudio emulation library
             case "$host" in
-                *-*-openbsd*|*-*-netbsd*)
+                *-*-netbsd*)
                     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lossaudio";;
             esac
         fi
@@ -1595,6 +1577,49 @@ CheckStackBoundary()
     fi
 }
 
+dnl See if GCC's -Werror is supported.
+CheckWerror()
+{
+    AC_ARG_ENABLE(werror,
+[AS_HELP_STRING([--enable-werror], [treat warnings as errors [default=no]])],
+                  enable_werror=$enableval, enable_werror=no)
+    if test x$enable_werror = xyes; then
+        AC_MSG_CHECKING(for GCC -Werror option)
+        have_gcc_werror=no
+
+        save_CFLAGS="$CFLAGS"
+        CFLAGS="$save_CFLAGS -Werror"
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        int x = 0;
+        ]],[])], [have_gcc_werror=yes],[])
+        AC_MSG_RESULT($have_gcc_werror)
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_werror = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -Werror"
+        fi
+    fi
+}
+
+dnl See if GCC's -Wno-error=deprecated-declarations is supported.
+CheckNoErrorDeprecatedDeclarationsWerror()
+{
+    AC_MSG_CHECKING(for GCC -Wno-error=deprecated-declarations option)
+    have_gcc_no_werror_deprecated_declarations=no
+
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$save_CFLAGS -Wno-error=deprecated-declarations"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+    int x = 0;
+    ]],[])], [have_gcc_no_werror_deprecated_declarations=yes],[])
+    AC_MSG_RESULT($have_gcc_werror)
+    CFLAGS="$save_CFLAGS"
+
+    if test x$have_gcc_no_werror_deprecated_declarations = xyes; then
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-error=deprecated-declarations"
+    fi
+}
+
 dnl See if GCC's -Wdeclaration-after-statement is supported.
 dnl  This lets us catch things that would fail on a C89 compiler when using
 dnl  a modern GCC.
@@ -1849,8 +1874,15 @@ dnl Find the X11 include and library directories
 CheckX11()
 {
     AC_ARG_ENABLE(video-x11,
-[AS_HELP_STRING([--enable-video-x11], [use X11 video driver [default=yes]])],
-                  , enable_video_x11=yes)
+[AS_HELP_STRING([--enable-video-x11], [use X11 video driver [default=maybe]])],
+                  ,[
+    enable_video_x11=yes
+    case "$host" in
+        *-*-darwin*|*-ios-*)
+            enable_video_x11=no
+            ;;
+    esac])
+
     if test x$enable_video = xyes -a x$enable_video_x11 = xyes; then
         case "$host" in
             *-*-darwin*)
@@ -3031,7 +3063,7 @@ dnl This is used on Linux for glibc binary compatibility (Doh!)
             ;;
         *-*-openbsd*)
             pthread_cflags="-D_REENTRANT"
-            pthread_lib="-pthread"
+            pthread_lib="-lpthread"
             ;;
         *-*-solaris2.9)
             # From Solaris 9+, posix4's preferred name is rt.
@@ -3754,6 +3786,7 @@ case "$host" in
                 ;;
         esac
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -3987,6 +4020,7 @@ case "$host" in
             have_loadso=yes
         fi
         CheckGDwarf4
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4211,6 +4245,8 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
         ARCH=ios
 
         CheckVisibilityHidden
+        CheckWerror
+        CheckNoErrorDeprecatedDeclarationsWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4326,6 +4362,8 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
 
         CheckObjectiveCARC
         CheckVisibilityHidden
+        CheckWerror
+        CheckNoErrorDeprecatedDeclarationsWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4451,6 +4489,7 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
         fi
 
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4502,6 +4541,7 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
     *-*-riscos*)
         ARCH=riscos
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -4552,6 +4592,7 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
         enable_static=no # disable static builds
         EXTRA_CFLAGS="$EXTRA_CFLAGS -DBUILD_SDL -DOS2EMX_PLAIN_CHAR"
         CheckOS2
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckDiskAudio
@@ -4642,6 +4683,12 @@ else
     AC_MSG_RESULT(no)
 fi
 AC_SUBST([INSTALL_SDL2_CONFIG], [$enable_sdl2_config])
+
+AC_ARG_ENABLE([vendor-info],
+    [AS_HELP_STRING([--enable-vendor-info=STRING], [Add vendor info to SDL_REVISION])],
+    [enable_vendor_info="$enableval"], [enable_vendor_info=])
+AS_IF([test "$enable_vendor_info" = no], [enable_vendor_info=])
+AC_SUBST([SDL_VENDOR_INFO], [$enable_vendor_info])
 
 # Verify that we have all the platform specific files we need
 

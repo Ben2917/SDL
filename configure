@@ -683,6 +683,7 @@ SDL_LIBS
 SDL_CFLAGS
 bin_prefix_relpath
 cmake_prefix_relpath
+SDL_VENDOR_INFO
 INSTALL_SDL2_CONFIG
 LIBUSB_LIBS
 LIBUSB_CFLAGS
@@ -902,6 +903,7 @@ enable_libsamplerate
 enable_libsamplerate_shared
 enable_arm_simd
 enable_arm_neon
+enable_werror
 enable_video_wayland
 enable_video_wayland_qt_touch
 enable_wayland_shared
@@ -953,6 +955,7 @@ enable_foregrounding_signal
 enable_joystick_virtual
 enable_render_d3d
 enable_sdl2_config
+enable_vendor_info
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1703,6 +1706,7 @@ Optional Features:
                           dynamically load libsamplerate [default=yes]
   --enable-arm-simd       use SIMD assembly blitters on ARM [default=no]
   --enable-arm-neon       use NEON assembly blitters on ARM [default=no]
+  --enable-werror         treat warnings as errors [default=no]
   --enable-video-wayland  use Wayland video driver [default=yes]
   --enable-video-wayland-qt-touch
                           QtWayland server support for Wayland video driver
@@ -1713,7 +1717,7 @@ Optional Features:
   --enable-libdecor-shared
                           dynamically load libdecor [default=yes]
   --enable-video-rpi      use Raspberry Pi 2/3 video driver [default=yes]
-  --enable-video-x11      use X11 video driver [default=yes]
+  --enable-video-x11      use X11 video driver [default=maybe]
   --enable-x11-shared     dynamically load X11 support [default=maybe]
   --enable-video-x11-xcursor
                           enable X11 Xcursor support [default=yes]
@@ -1779,6 +1783,8 @@ Optional Features:
                           enable virtual joystick APIs [default=yes]
   --enable-render-d3d     enable the Direct3D render driver [default=yes]
   --enable-sdl2-config    Install sdl2-config [default=yes]
+  --enable-vendor-info=STRING
+                          Add vendor info to SDL_REVISION
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -20999,16 +21005,8 @@ else $as_nop
   enable_oss=maybe
 fi
 
-
-    # OpenBSD "has" OSS, but it's not really for app use. They want you to
-    #  use sndio instead. So on there, we default to disabled. You can force
-    #  it on if you really want, though.
     if test x$enable_oss = xmaybe; then
         enable_oss=yes
-        case "$host" in
-            *-*-openbsd*)
-                enable_oss=no;;
-        esac
     fi
 
     if test x$enable_audio = xyes -a x$enable_oss = xyes; then
@@ -21037,33 +21035,6 @@ then :
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
         fi
-        if test x$have_oss != xyes; then
-            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-              #include <soundcard.h>
-
-int
-main (void)
-{
-
-              int arg = SNDCTL_DSP_SETFRAGMENT;
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"
-then :
-
-            have_oss=yes
-
-printf "%s\n" "#define SDL_AUDIO_DRIVER_OSS_SOUNDCARD_H 1" >>confdefs.h
-
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-        fi
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_oss" >&5
 printf "%s\n" "$have_oss" >&6; }
         if test x$have_oss = xyes; then
@@ -21076,7 +21047,7 @@ printf "%s\n" "#define SDL_AUDIO_DRIVER_OSS 1" >>confdefs.h
 
             # We may need to link with ossaudio emulation library
             case "$host" in
-                *-*-openbsd*|*-*-netbsd*)
+                *-*-netbsd*)
                     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lossaudio";;
             esac
         fi
@@ -22952,6 +22923,86 @@ printf "%s\n" "$have_gcc_preferred_stack_boundary" >&6; }
     fi
 }
 
+CheckWerror()
+{
+    # Check whether --enable-werror was given.
+if test ${enable_werror+y}
+then :
+  enableval=$enable_werror; enable_werror=$enableval
+else $as_nop
+  enable_werror=no
+fi
+
+    if test x$enable_werror = xyes; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GCC -Werror option" >&5
+printf %s "checking for GCC -Werror option... " >&6; }
+        have_gcc_werror=no
+
+        save_CFLAGS="$CFLAGS"
+        CFLAGS="$save_CFLAGS -Werror"
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        int x = 0;
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  have_gcc_werror=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_gcc_werror" >&5
+printf "%s\n" "$have_gcc_werror" >&6; }
+        CFLAGS="$save_CFLAGS"
+
+        if test x$have_gcc_werror = xyes; then
+            EXTRA_CFLAGS="$EXTRA_CFLAGS -Werror"
+        fi
+    fi
+}
+
+CheckNoErrorDeprecatedDeclarationsWerror()
+{
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GCC -Wno-error=deprecated-declarations option" >&5
+printf %s "checking for GCC -Wno-error=deprecated-declarations option... " >&6; }
+    have_gcc_no_werror_deprecated_declarations=no
+
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$save_CFLAGS -Wno-error=deprecated-declarations"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    int x = 0;
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  have_gcc_no_werror_deprecated_declarations=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_gcc_werror" >&5
+printf "%s\n" "$have_gcc_werror" >&6; }
+    CFLAGS="$save_CFLAGS"
+
+    if test x$have_gcc_no_werror_deprecated_declarations = xyes; then
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-error=deprecated-declarations"
+    fi
+}
+
 CheckDeclarationAfterStatement()
 {
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GCC -Wdeclaration-after-statement option" >&5
@@ -23478,8 +23529,15 @@ if test ${enable_video_x11+y}
 then :
   enableval=$enable_video_x11;
 else $as_nop
-  enable_video_x11=yes
+
+    enable_video_x11=yes
+    case "$host" in
+        *-*-darwin*|*-ios-*)
+            enable_video_x11=no
+            ;;
+    esac
 fi
+
 
     if test x$enable_video = xyes -a x$enable_video_x11 = xyes; then
         case "$host" in
@@ -26724,7 +26782,7 @@ fi
             ;;
         *-*-openbsd*)
             pthread_cflags="-D_REENTRANT"
-            pthread_lib="-pthread"
+            pthread_lib="-lpthread"
             ;;
         *-*-solaris2.9)
             # From Solaris 9+, posix4's preferred name is rt.
@@ -28308,6 +28366,7 @@ printf "%s\n" "#define SDL_VIDEO_DRIVER_ANDROID 1" >>confdefs.h
                 ;;
         esac
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -28575,6 +28634,7 @@ printf "%s\n" "#define SDL_TIMER_UNIX 1" >>confdefs.h
             have_loadso=yes
         fi
         CheckGDwarf4
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -28898,6 +28958,8 @@ printf "%s\n" "#define SDL_FILESYSTEM_HAIKU 1" >>confdefs.h
         ARCH=ios
 
         CheckVisibilityHidden
+        CheckWerror
+        CheckNoErrorDeprecatedDeclarationsWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -29035,6 +29097,8 @@ printf "%s\n" "#define SDL_VIDEO_RENDER_OGL_ES2 1" >>confdefs.h
 
         CheckObjectiveCARC
         CheckVisibilityHidden
+        CheckWerror
+        CheckNoErrorDeprecatedDeclarationsWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -29180,6 +29244,7 @@ printf "%s\n" "#define SDL_AUDIO_DRIVER_EMSCRIPTEN 1" >>confdefs.h
         fi
 
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -29239,6 +29304,7 @@ printf "%s\n" "#define SDL_TIMER_UNIX 1" >>confdefs.h
     *-*-riscos*)
         ARCH=riscos
         CheckVisibilityHidden
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
@@ -29295,6 +29361,7 @@ printf "%s\n" "#define SDL_TIMER_UNIX 1" >>confdefs.h
         enable_static=no # disable static builds
         EXTRA_CFLAGS="$EXTRA_CFLAGS -DBUILD_SDL -DOS2EMX_PLAIN_CHAR"
         CheckOS2
+        CheckWerror
         CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckDiskAudio
@@ -29406,6 +29473,21 @@ else
 printf "%s\n" "no" >&6; }
 fi
 INSTALL_SDL2_CONFIG=$enable_sdl2_config
+
+
+# Check whether --enable-vendor-info was given.
+if test ${enable_vendor_info+y}
+then :
+  enableval=$enable_vendor_info; enable_vendor_info="$enableval"
+else $as_nop
+  enable_vendor_info=
+fi
+
+if test "$enable_vendor_info" = no
+then :
+  enable_vendor_info=
+fi
+SDL_VENDOR_INFO=$enable_vendor_info
 
 
 # Verify that we have all the platform specific files we need
