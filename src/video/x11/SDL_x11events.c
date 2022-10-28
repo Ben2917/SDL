@@ -746,6 +746,19 @@ XLookupStringAsUTF8(XKeyEvent *event_struct, char *buffer_return, int bytes_buff
     return result;
 }
 
+static Bool
+keyIsPressed(Display *display, char *keyboard_state, int keyboard_state_size, KeySym key_sym)
+{
+    KeyCode kc = X11_XKeysymToKeycode(display, key_sym);
+
+    int shifted_kc = kc >> 3;
+    if (shifted_kc >= keyboard_state_size)
+        return False;
+
+    return keyboard_state[shifted_kc] & (1 << (kc & 7));
+}
+
+
 static void
 X11_DispatchEvent(_THIS, XEvent *xevent)
 {
@@ -1272,11 +1285,24 @@ X11_DispatchEvent(_THIS, XEvent *xevent)
             else if ((xevent->xclient.message_type == videodata->WM_PROTOCOLS) &&
                 (xevent->xclient.format == 32) &&
                 (xevent->xclient.data.l[0] == videodata->WM_DELETE_WINDOW)) {
-
+                Bool alt_pressed = False, f4_pressed = False;
+                char keyboard_state[32];
 #ifdef DEBUG_XEVENTS
                 printf("window %p: WM_DELETE_WINDOW\n", data);
 #endif
-                SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, SDL_WINDOWCLOSETRIGGER_CLOSE, 0);
+                X11_XQueryKeymap(display, keyboard_state);
+
+                alt_pressed = keyIsPressed(display, keyboard_state, sizeof keyboard_state, XK_Alt_L);
+                f4_pressed = keyIsPressed(display, keyboard_state, sizeof keyboard_state, XK_F4);
+
+                if (alt_pressed && f4_pressed)
+                {
+                    SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, SDL_WINDOWCLOSETRIGGER_KEYBOARD_SHORTCUT, 0);
+                }
+                else
+                {
+                    SDL_SendWindowEvent(data->window, SDL_WINDOWEVENT_CLOSE, SDL_WINDOWCLOSETRIGGER_CLOSE, 0);
+                }
                 break;
             }
             else if ((xevent->xclient.message_type == videodata->WM_PROTOCOLS) &&
