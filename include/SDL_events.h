@@ -589,17 +589,22 @@ typedef struct SDL_OSEvent
     Uint32 timestamp;   /**< In milliseconds, populated using SDL_GetTicks() */
 } SDL_OSEvent;
 
+typedef union SDL_Event SDL_Event; /** Forward declaration of SDL_Event required 
+                                    by SDL_UserEvent free function pointer */
+
 /**
  *  \brief A user-defined event type (event.user.*)
  */
 typedef struct SDL_UserEvent
 {
-    Uint32 type;        /**< ::SDL_USEREVENT through ::SDL_LASTEVENT-1 */
-    Uint32 timestamp;   /**< In milliseconds, populated using SDL_GetTicks() */
-    Uint32 windowID;    /**< The associated window if any */
-    Sint32 code;        /**< User defined event code */
-    void *data1;        /**< User defined data pointer */
-    void *data2;        /**< User defined data pointer */
+    Uint32 type;                    /**< ::SDL_USEREVENT through ::SDL_LASTEVENT-1 */
+    Uint32 timestamp;               /**< In milliseconds, populated using SDL_GetTicks() */
+    Uint32 windowID;                /**< The associated window if any */
+    Sint32 code;                    /**< User defined event code */
+    void *data1;                    /**< User defined data pointer */
+    void *data2;                    /**< User defined data pointer */
+    void (SDLCALL *free)(SDL_Event *);   /**< User specified function for freeing user defined 
+                                        data (data1, data2) as required. Set to NULL if not required. */
 } SDL_UserEvent;
 
 
@@ -881,6 +886,16 @@ extern DECLSPEC void SDLCALL SDL_FlushEvents(Uint32 minType, Uint32 maxType);
  * \sa SDL_WaitEventTimeout
  */
 extern DECLSPEC int SDLCALL SDL_PollEvent(SDL_Event * event);
+
+/**
+ * Handles SDL events that require cleanup. Users should call this
+ * function at the end of the event loop.
+ * 
+ * \param event the SDL_Event structure to be cleaned up
+ * 
+ * \since This function is available since SDL 3.0.0.
+*/
+extern DECLSPEC void SDLCALL SDL_FreeEvent(SDL_Event * event);
 
 /**
  * Wait indefinitely for the next available event.
