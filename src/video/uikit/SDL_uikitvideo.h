@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -27,9 +27,9 @@
 
 #include <UIKit/UIKit.h>
 
-@interface SDL_VideoData : NSObject
+@interface SDL_UIKitVideoData : NSObject
 
-@property (nonatomic, assign) id pasteboardObserver;
+@property(nonatomic, assign) id pasteboardObserver;
 
 @end
 
@@ -37,12 +37,12 @@ CGRect UIKit_ComputeViewFrame(SDL_Window *window, UIScreen *screen);
 
 #endif /* __OBJC__ */
 
-void UIKit_SuspendScreenSaver(_THIS);
+int UIKit_SuspendScreenSaver(SDL_VideoDevice *_this);
 
 void UIKit_ForceUpdateHomeIndicator(void);
 
 SDL_bool UIKit_IsSystemVersionAtLeast(double version);
 
-#endif /* SDL_uikitvideo_h_ */
+SDL_SystemTheme UIKit_GetSystemTheme(void);
 
-/* vi: set ts=4 sw=4 expandtab: */
+#endif /* SDL_uikitvideo_h_ */

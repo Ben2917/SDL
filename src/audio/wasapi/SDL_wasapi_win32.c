@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,7 +18,7 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
+#include "SDL_internal.h"
 
 /* This is code that Windows uses to talk to WASAPI-related system APIs.
    This is for non-WinRT desktop apps. The C++/CX implementation of these
@@ -26,12 +26,10 @@
    The code in SDL_wasapi.c is used by both standard Windows and WinRT builds
    to deal with audio and calls into these functions. */
 
-#if SDL_AUDIO_DRIVER_WASAPI && !defined(__WINRT__)
+#if defined(SDL_AUDIO_DRIVER_WASAPI) && !defined(__WINRT__)
 
 #include "../../core/windows/SDL_windows.h"
 #include "../../core/windows/SDL_immdevice.h"
-#include "SDL_audio.h"
-#include "SDL_timer.h"
 #include "../SDL_audio_c.h"
 #include "../SDL_sysaudio.h"
 
@@ -47,26 +45,24 @@ static pfnAvSetMmThreadCharacteristicsW pAvSetMmThreadCharacteristicsW = NULL;
 static pfnAvRevertMmThreadCharacteristics pAvRevertMmThreadCharacteristics = NULL;
 
 /* Some GUIDs we need to know without linking to libraries that aren't available before Vista. */
-static const IID SDL_IID_IAudioClient = { 0x1cb9ad4c, 0xdbfa, 0x4c32,{ 0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2 } };
+static const IID SDL_IID_IAudioClient = { 0x1cb9ad4c, 0xdbfa, 0x4c32, { 0xb1, 0x78, 0xc2, 0xf5, 0x68, 0xa7, 0x03, 0xb2 } };
 
-int
-WASAPI_PlatformInit(void)
+int WASAPI_PlatformInit(void)
 {
     if (SDL_IMMDevice_Init() < 0) {
         return -1; /* This is set by SDL_IMMDevice_Init */
     }
 
-    libavrt = LoadLibrary(TEXT("avrt.dll"));  /* this library is available in Vista and later. No WinXP, so have to LoadLibrary to use it for now! */
+    libavrt = LoadLibrary(TEXT("avrt.dll")); /* this library is available in Vista and later. No WinXP, so have to LoadLibrary to use it for now! */
     if (libavrt) {
-        pAvSetMmThreadCharacteristicsW = (pfnAvSetMmThreadCharacteristicsW) GetProcAddress(libavrt, "AvSetMmThreadCharacteristicsW");
-        pAvRevertMmThreadCharacteristics = (pfnAvRevertMmThreadCharacteristics) GetProcAddress(libavrt, "AvRevertMmThreadCharacteristics");
+        pAvSetMmThreadCharacteristicsW = (pfnAvSetMmThreadCharacteristicsW)GetProcAddress(libavrt, "AvSetMmThreadCharacteristicsW");
+        pAvRevertMmThreadCharacteristics = (pfnAvRevertMmThreadCharacteristics)GetProcAddress(libavrt, "AvRevertMmThreadCharacteristics");
     }
 
     return 0;
 }
 
-void
-WASAPI_PlatformDeinit(void)
+void WASAPI_PlatformDeinit(void)
 {
     if (libavrt) {
         FreeLibrary(libavrt);
@@ -79,84 +75,75 @@ WASAPI_PlatformDeinit(void)
     SDL_IMMDevice_Quit();
 }
 
-void
-WASAPI_PlatformThreadInit(_THIS)
+void WASAPI_PlatformThreadInit(SDL_AudioDevice *_this)
 {
     /* this thread uses COM. */
-    if (SUCCEEDED(WIN_CoInitialize())) {    /* can't report errors, hope it worked! */
-        this->hidden->coinitialized = SDL_TRUE;
+    if (SUCCEEDED(WIN_CoInitialize())) { /* can't report errors, hope it worked! */
+        _this->hidden->coinitialized = SDL_TRUE;
     }
 
     /* Set this thread to very high "Pro Audio" priority. */
     if (pAvSetMmThreadCharacteristicsW) {
         DWORD idx = 0;
-        this->hidden->task = pAvSetMmThreadCharacteristicsW(L"Pro Audio", &idx);
+        _this->hidden->task = pAvSetMmThreadCharacteristicsW(L"Pro Audio", &idx);
     }
 }
 
-void
-WASAPI_PlatformThreadDeinit(_THIS)
+void WASAPI_PlatformThreadDeinit(SDL_AudioDevice *_this)
 {
     /* Set this thread back to normal priority. */
-    if (this->hidden->task && pAvRevertMmThreadCharacteristics) {
-        pAvRevertMmThreadCharacteristics(this->hidden->task);
-        this->hidden->task = NULL;
+    if (_this->hidden->task && pAvRevertMmThreadCharacteristics) {
+        pAvRevertMmThreadCharacteristics(_this->hidden->task);
+        _this->hidden->task = NULL;
     }
 
-    if (this->hidden->coinitialized) {
+    if (_this->hidden->coinitialized) {
         WIN_CoUninitialize();
-        this->hidden->coinitialized = SDL_FALSE;
+        _this->hidden->coinitialized = SDL_FALSE;
     }
 }
 
-int
-WASAPI_ActivateDevice(_THIS, const SDL_bool isrecovery)
+int WASAPI_ActivateDevice(SDL_AudioDevice *_this, const SDL_bool isrecovery)
 {
     IMMDevice *device = NULL;
     HRESULT ret;
 
-    if (SDL_IMMDevice_Get(this->hidden->devid, &device, this->iscapture) < 0) {
-        this->hidden->client = NULL;
+    if (SDL_IMMDevice_Get(_this->hidden->devid, &device, _this->iscapture) < 0) {
+        _this->hidden->client = NULL;
         return -1; /* This is already set by SDL_IMMDevice_Get */
     }
 
     /* this is not async in standard win32, yay! */
-    ret = IMMDevice_Activate(device, &SDL_IID_IAudioClient, CLSCTX_ALL, NULL, (void **) &this->hidden->client);
+    ret = IMMDevice_Activate(device, &SDL_IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&_this->hidden->client);
     IMMDevice_Release(device);
 
     if (FAILED(ret)) {
-        SDL_assert(this->hidden->client == NULL);
+        SDL_assert(_this->hidden->client == NULL);
         return WIN_SetErrorFromHRESULT("WASAPI can't activate audio endpoint", ret);
     }
 
-    SDL_assert(this->hidden->client != NULL);
-    if (WASAPI_PrepDevice(this, isrecovery) == -1) {   /* not async, fire it right away. */
+    SDL_assert(_this->hidden->client != NULL);
+    if (WASAPI_PrepDevice(_this, isrecovery) == -1) { /* not async, fire it right away. */
         return -1;
     }
 
-    return 0;  /* good to go. */
+    return 0; /* good to go. */
 }
 
-void
-WASAPI_EnumerateEndpoints(void)
+void WASAPI_EnumerateEndpoints(void)
 {
     SDL_IMMDevice_EnumerateEndpoints(SDL_FALSE);
 }
 
-int
-WASAPI_GetDefaultAudioInfo(char **name, SDL_AudioSpec *spec, int iscapture)
+int WASAPI_GetDefaultAudioInfo(char **name, SDL_AudioSpec *spec, int iscapture)
 {
     return SDL_IMMDevice_GetDefaultAudioInfo(name, spec, iscapture);
 }
 
-void
-WASAPI_PlatformDeleteActivationHandler(void *handler)
+void WASAPI_PlatformDeleteActivationHandler(void *handler)
 {
     /* not asynchronous. */
     SDL_assert(!"This function should have only been called on WinRT.");
 }
 
-#endif  /* SDL_AUDIO_DRIVER_WASAPI && !defined(__WINRT__) */
-
-/* vi: set ts=4 sw=4 expandtab: */
-
+#endif /* SDL_AUDIO_DRIVER_WASAPI && !defined(__WINRT__) */

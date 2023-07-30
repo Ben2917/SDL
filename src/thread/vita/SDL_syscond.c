@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,9 +18,9 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
+#include "SDL_internal.h"
 
-#if SDL_THREAD_VITA
+#ifdef SDL_THREAD_VITA
 
 /* An implementation of condition variables using semaphores and mutexes */
 /*
@@ -28,44 +28,40 @@
    implementation, written by Christopher Tate and Owen Smith.  Thanks!
  */
 
-#include "SDL_thread.h"
-
-struct SDL_cond
+struct SDL_Condition
 {
-    SDL_mutex *lock;
+    SDL_Mutex *lock;
     int waiting;
     int signals;
-    SDL_sem *wait_sem;
-    SDL_sem *wait_done;
+    SDL_Semaphore *wait_sem;
+    SDL_Semaphore *wait_done;
 };
 
 /* Create a condition variable */
-SDL_cond *
-SDL_CreateCond(void)
+SDL_Condition *SDL_CreateCondition(void)
 {
-    SDL_cond *cond;
+    SDL_Condition *cond;
 
-    cond = (SDL_cond *) SDL_malloc(sizeof(SDL_cond));
-    if (cond) {
+    cond = (SDL_Condition *)SDL_malloc(sizeof(SDL_Condition));
+    if (cond != NULL) {
         cond->lock = SDL_CreateMutex();
         cond->wait_sem = SDL_CreateSemaphore(0);
         cond->wait_done = SDL_CreateSemaphore(0);
         cond->waiting = cond->signals = 0;
         if (!cond->lock || !cond->wait_sem || !cond->wait_done) {
-            SDL_DestroyCond(cond);
+            SDL_DestroyCondition(cond);
             cond = NULL;
         }
     } else {
         SDL_OutOfMemory();
     }
-    return (cond);
+    return cond;
 }
 
 /* Destroy a condition variable */
-void
-SDL_DestroyCond(SDL_cond * cond)
+void SDL_DestroyCondition(SDL_Condition *cond)
 {
-    if (cond) {
+    if (cond != NULL) {
         if (cond->wait_sem) {
             SDL_DestroySemaphore(cond->wait_sem);
         }
@@ -80,10 +76,9 @@ SDL_DestroyCond(SDL_cond * cond)
 }
 
 /* Restart one of the threads that are waiting on the condition variable */
-int
-SDL_CondSignal(SDL_cond * cond)
+int SDL_SignalCondition(SDL_Condition *cond)
 {
-    if (!cond) {
+    if (cond == NULL) {
         return SDL_InvalidParamError("cond");
     }
 
@@ -93,9 +88,9 @@ SDL_CondSignal(SDL_cond * cond)
     SDL_LockMutex(cond->lock);
     if (cond->waiting > cond->signals) {
         ++cond->signals;
-        SDL_SemPost(cond->wait_sem);
+        SDL_PostSemaphore(cond->wait_sem);
         SDL_UnlockMutex(cond->lock);
-        SDL_SemWait(cond->wait_done);
+        SDL_WaitSemaphore(cond->wait_done);
     } else {
         SDL_UnlockMutex(cond->lock);
     }
@@ -104,10 +99,9 @@ SDL_CondSignal(SDL_cond * cond)
 }
 
 /* Restart all threads that are waiting on the condition variable */
-int
-SDL_CondBroadcast(SDL_cond * cond)
+int SDL_BroadcastCondition(SDL_Condition *cond)
 {
-    if (!cond) {
+    if (cond == NULL) {
         return SDL_InvalidParamError("cond");
     }
 
@@ -121,14 +115,14 @@ SDL_CondBroadcast(SDL_cond * cond)
         num_waiting = (cond->waiting - cond->signals);
         cond->signals = cond->waiting;
         for (i = 0; i < num_waiting; ++i) {
-            SDL_SemPost(cond->wait_sem);
+            SDL_PostSemaphore(cond->wait_sem);
         }
         /* Now all released threads are blocked here, waiting for us.
            Collect them all (and win fabulous prizes!) :-)
          */
         SDL_UnlockMutex(cond->lock);
         for (i = 0; i < num_waiting; ++i) {
-            SDL_SemWait(cond->wait_done);
+            SDL_WaitSemaphore(cond->wait_done);
         }
     } else {
         SDL_UnlockMutex(cond->lock);
@@ -137,7 +131,7 @@ SDL_CondBroadcast(SDL_cond * cond)
     return 0;
 }
 
-/* Wait on the condition variable for at most 'ms' milliseconds.
+/* Wait on the condition variable for at most 'timeoutNS' nanoseconds.
    The mutex must be locked before entering this function!
    The mutex is unlocked during the wait, and locked again after the wait.
 
@@ -146,7 +140,7 @@ Typical use:
 Thread A:
     SDL_LockMutex(lock);
     while ( ! condition ) {
-        SDL_CondWait(cond, lock);
+        SDL_WaitCondition(cond, lock);
     }
     SDL_UnlockMutex(lock);
 
@@ -155,15 +149,14 @@ Thread B:
     ...
     condition = true;
     ...
-    SDL_CondSignal(cond);
+    SDL_SignalCondition(cond);
     SDL_UnlockMutex(lock);
  */
-int
-SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
+int SDL_WaitConditionTimeoutNS(SDL_Condition *cond, SDL_Mutex *mutex, Sint64 timeoutNS)
 {
     int retval;
 
-    if (!cond) {
+    if (cond == NULL) {
         return SDL_InvalidParamError("cond");
     }
 
@@ -179,11 +172,7 @@ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
     SDL_UnlockMutex(mutex);
 
     /* Wait for a signal */
-    if (ms == SDL_MUTEX_MAXWAIT) {
-        retval = SDL_SemWait(cond->wait_sem);
-    } else {
-        retval = SDL_SemWaitTimeout(cond->wait_sem, ms);
-    }
+    retval = SDL_WaitSemaphoreTimeoutNS(cond->wait_sem, timeoutNS);
 
     /* Let the signaler know we have completed the wait, otherwise
        the signaler can race ahead and get the condition semaphore
@@ -195,10 +184,10 @@ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
     if (cond->signals > 0) {
         /* If we timed out, we need to eat a condition signal */
         if (retval > 0) {
-            SDL_SemWait(cond->wait_sem);
+            SDL_WaitSemaphore(cond->wait_sem);
         }
         /* We always notify the signal thread that we are done */
-        SDL_SemPost(cond->wait_done);
+        SDL_PostSemaphore(cond->wait_done);
 
         /* Signal handshake complete */
         --cond->signals;
@@ -212,13 +201,4 @@ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
     return retval;
 }
 
-/* Wait on the condition variable forever */
-int
-SDL_CondWait(SDL_cond * cond, SDL_mutex * mutex)
-{
-    return SDL_CondWaitTimeout(cond, mutex, SDL_MUTEX_MAXWAIT);
-}
-
 #endif /* SDL_THREAD_VITA */
-
-/* vi: set ts=4 sw=4 expandtab: */

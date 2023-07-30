@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,31 +18,28 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
+#include "SDL_internal.h"
 
 /* An implementation of mutexes using semaphores */
 
-#include "SDL_thread.h"
 #include "SDL_systhread_c.h"
 
-
-struct SDL_mutex
+struct SDL_Mutex
 {
     int recursive;
     SDL_threadID owner;
-    SDL_sem *sem;
+    SDL_Semaphore *sem;
 };
 
 /* Create a mutex */
-SDL_mutex *
-SDL_CreateMutex(void)
+SDL_Mutex *SDL_CreateMutex(void)
 {
-    SDL_mutex *mutex;
+    SDL_Mutex *mutex;
 
     /* Allocate mutex memory */
-    mutex = (SDL_mutex *) SDL_calloc(1, sizeof(*mutex));
+    mutex = (SDL_Mutex *)SDL_calloc(1, sizeof(*mutex));
 
-#if !SDL_THREADS_DISABLED
+#ifndef SDL_THREADS_DISABLED
     if (mutex) {
         /* Create the mutex semaphore, with initial value 1 */
         mutex->sem = SDL_CreateSemaphore(1);
@@ -61,8 +58,7 @@ SDL_CreateMutex(void)
 }
 
 /* Free the mutex */
-void
-SDL_DestroyMutex(SDL_mutex * mutex)
+void SDL_DestroyMutex(SDL_Mutex *mutex)
 {
     if (mutex) {
         if (mutex->sem) {
@@ -73,16 +69,15 @@ SDL_DestroyMutex(SDL_mutex * mutex)
 }
 
 /* Lock the mutex */
-int
-SDL_LockMutex(SDL_mutex * mutex)
+int SDL_LockMutex(SDL_Mutex *mutex) SDL_NO_THREAD_SAFETY_ANALYSIS /* clang doesn't know about NULL mutexes */
 {
-#if SDL_THREADS_DISABLED
+#ifdef SDL_THREADS_DISABLED
     return 0;
 #else
     SDL_threadID this_thread;
 
     if (mutex == NULL) {
-        return SDL_InvalidParamError("mutex");
+        return 0;
     }
 
     this_thread = SDL_ThreadID();
@@ -93,7 +88,7 @@ SDL_LockMutex(SDL_mutex * mutex)
            We set the locking thread id after we obtain the lock
            so unlocks from other threads will fail.
          */
-        SDL_SemWait(mutex->sem);
+        SDL_WaitSemaphore(mutex->sem);
         mutex->owner = this_thread;
         mutex->recursive = 0;
     }
@@ -103,17 +98,16 @@ SDL_LockMutex(SDL_mutex * mutex)
 }
 
 /* try Lock the mutex */
-int
-SDL_TryLockMutex(SDL_mutex * mutex)
+int SDL_TryLockMutex(SDL_Mutex *mutex)
 {
-#if SDL_THREADS_DISABLED
+#ifdef SDL_THREADS_DISABLED
     return 0;
 #else
     int retval = 0;
     SDL_threadID this_thread;
 
     if (mutex == NULL) {
-        return SDL_InvalidParamError("mutex");
+        return 0;
     }
 
     this_thread = SDL_ThreadID();
@@ -124,7 +118,7 @@ SDL_TryLockMutex(SDL_mutex * mutex)
          We set the locking thread id after we obtain the lock
          so unlocks from other threads will fail.
          */
-        retval = SDL_SemWait(mutex->sem);
+        retval = SDL_WaitSemaphore(mutex->sem);
         if (retval == 0) {
             mutex->owner = this_thread;
             mutex->recursive = 0;
@@ -136,14 +130,13 @@ SDL_TryLockMutex(SDL_mutex * mutex)
 }
 
 /* Unlock the mutex */
-int
-SDL_mutexV(SDL_mutex * mutex)
+int SDL_UnlockMutex(SDL_Mutex *mutex) SDL_NO_THREAD_SAFETY_ANALYSIS /* clang doesn't know about NULL mutexes */
 {
-#if SDL_THREADS_DISABLED
+#ifdef SDL_THREADS_DISABLED
     return 0;
 #else
     if (mutex == NULL) {
-        return SDL_InvalidParamError("mutex");
+        return 0;
     }
 
     /* If we don't own the mutex, we can't unlock it */
@@ -160,10 +153,9 @@ SDL_mutexV(SDL_mutex * mutex)
            then release the lock semaphore.
          */
         mutex->owner = 0;
-        SDL_SemPost(mutex->sem);
+        SDL_PostSemaphore(mutex->sem);
     }
     return 0;
 #endif /* SDL_THREADS_DISABLED */
 }
 
-/* vi: set ts=4 sw=4 expandtab: */

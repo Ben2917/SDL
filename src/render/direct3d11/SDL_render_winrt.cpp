@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,11 +18,10 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
+#include "SDL_internal.h"
 
-#if SDL_VIDEO_RENDER_D3D11 && !SDL_RENDER_DISABLED
+#if defined(SDL_VIDEO_RENDER_D3D11) && !defined(SDL_RENDER_DISABLED)
 
-#include "SDL_syswm.h"
 #include "../../video/winrt/SDL_winrtvideo_cpp.h"
 extern "C" {
 #include "../SDL_sysrender.h"
@@ -40,20 +39,22 @@ using namespace Windows::Graphics::Display;
 
 #include <DXGI.h>
 
+#include <SDL3/SDL_syswm.h>
+
 #include "SDL_render_winrt.h"
 
-
 extern "C" void *
-D3D11_GetCoreWindowFromSDLRenderer(SDL_Renderer * renderer)
+D3D11_GetCoreWindowFromSDLRenderer(SDL_Renderer *renderer)
 {
-    SDL_Window * sdlWindow = renderer->window;
-    if ( ! renderer->window ) {
+    SDL_Window *sdlWindow = renderer->window;
+    if (renderer->window == NULL) {
         return NULL;
     }
 
     SDL_SysWMinfo sdlWindowInfo;
-    SDL_VERSION(&sdlWindowInfo.version);
-    if ( ! SDL_GetWindowWMInfo(sdlWindow, &sdlWindowInfo) ) {
+    if (SDL_GetWindowWMInfo(sdlWindow, &sdlWindowInfo, SDL_SYSWM_CURRENT_VERSION) < 0 ||
+        sdlWindowInfo.subsystem != SDL_SYSWM_WINRT) {
+        SDL_SetError("Couldn't get window handle");
         return NULL;
     }
 
@@ -84,7 +85,7 @@ D3D11_GetCurrentRotation()
 
     switch (currentOrientation) {
 
-#if WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#if SDL_WINAPI_FAMILY_PHONE
     /* Windows Phone rotations */
     case DisplayOrientations::Landscape:
         return DXGI_MODE_ROTATION_ROTATE90;
@@ -104,13 +105,10 @@ D3D11_GetCurrentRotation()
         return DXGI_MODE_ROTATION_ROTATE180;
     case DisplayOrientations::PortraitFlipped:
         return DXGI_MODE_ROTATION_ROTATE90;
-#endif /* WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP */
+#endif /* SDL_WINAPI_FAMILY_PHONE */
     }
 
     return DXGI_MODE_ROTATION_IDENTITY;
 }
 
-
 #endif /* SDL_VIDEO_RENDER_D3D11 && !SDL_RENDER_DISABLED */
-
-/* vi: set ts=4 sw=4 expandtab: */
